@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Cocina</title>
+    <meta http-equiv="refresh" content="30"> <!-- Refresca cada 30 segundos -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/kitchen.css') }}">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <div class="barra">
+    {% if session.get('role') == 'admin' %}
+        <!-- Botón para mostrar/ocultar la barra lateral -->
+        <button id="toggle-sidebar" class="toggle-button">☰</button>
+
+        <!-- Barra lateral -->
+        <div class="sidebar" id="sidebar" style="box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);">
+            <h2>Panel de Navegación</h2>
+            <a href="{{ url_for('admin') }}">Regresar al Panel de Administrador</a>
+            <a href="{{ url_for('worker') }}">Regresar al Panel de Worker</a>
+            <!-- Agrega más enlaces según sea necesario -->
+        </div>
+    {% endif %}
+    </div>
+
+    <div class="main-content"> 
+    <div class="container">
+        
+
+
+        <header>
+            <h1>Panel de Cocina</h1>
+        </header>
+
+
+
+
+
+
+
+        <!-- Pedidos Pendientes -->
+        <section class="orders-section">
+            <h2>Pedidos Pendientes</h2>
+            {% if pending_by_table %}
+                {% for (table_number, lugar), orders in pending_by_table.items() %}
+                <div class="order-table">
+                    <h3>Mesa: {{ table_number }} - Lugar: {{ lugar }}</h3>
+                    <!-- Mostrar notas -->
+                    {% if (table_number, lugar) in notes_by_table %}
+                        <div class="notes">
+                            <h4>Notas:</h4>
+                            <ul>
+                                {% for note in notes_by_table[(table_number, lugar)] %}
+                                    <li>{{ note }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endif %}
+                    <ul class="order-list">
+                        {% for order in orders %}
+                        <li class="order-item">
+                            <strong>Pedido: {{ order.id }}</strong><br>
+                            Producto: {{ order.product_name }}<br>
+                            Cantidad: {{ order.quantity }}<br>
+                            Hora del Pedido: {{ order.time_ordered }}<br>
+                            <form action="/complete_order" method="POST" style="display:inline;">
+                                <input type="hidden" name="id" value="{{ order.id }}">
+                                <button type="submit" class="complete-button">Marcar como Completado</button>
+                            </form>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p class="no-orders">No hay pedidos pendientes.</p>
+            {% endif %}
+        </section>
+
+        <!-- Pedidos Realizados -->
+        <section class="orders-section">
+            <h2>Pedidos Realizados</h2>
+            {% if completed_by_table %}
+                {% for (table_number, lugar), orders in completed_by_table.items() %}
+                <div class="order-table">
+                    <h3>Mesa: {{ table_number }} - Lugar: {{ lugar }}</h3>
+                    <ul class="order-list">
+                        {% for order in orders %}
+                        <li class="order-item">
+                            <strong>Pedido: {{ order.id }}</strong><br>
+                            Producto: {{ order.product_name }}<br>
+                            Cantidad: {{ order.quantity }}<br>
+                            Hora del Pedido: {{ order.time_ordered }}<br>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    <!-- Botón para generar la cuenta de la mesa -->
+                    <form action="/create_bill" method="POST">
+                        <input type="hidden" name="table_number" value="{{ table_number }}">
+                        <input type="hidden" name="lugar" value="{{ lugar }}">
+                        <button type="submit" class="create-bill-button">Crear Cuenta</button>
+                    </form>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p class="no-orders">No hay pedidos completados.</p>
+            {% endif %}
+        </section>
+
+        <footer>
+            <a href="/logout" class="logout-link">Cerrar Sesión</a>
+        </footer>
+    </div>
+
+
+
+
+
+        <script>
+            // Script para mostrar y ocultar la barra lateral
+            $(document).ready(function() {
+                $("#toggle-sidebar").click(function() {
+                    $("#sidebar").toggle();
+                });
+            });
+        </script>
+    </div>
+</body>
+</html>

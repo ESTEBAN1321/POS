@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Caja</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/worker.css') }}">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+
+
+        
+        let currentPage = 1;
+        const productsPerPage = 4;
+
+        function showProducts() {
+            document.getElementById('mesaLugarSection').style.display = 'none';
+            document.getElementById('productosSection').style.display = 'block';
+            displayProducts(currentPage);
+        }
+
+        function showMesaLugar() {
+            document.getElementById('productosSection').style.display = 'none';
+            document.getElementById('mesaLugarSection').style.display = 'block';
+        }
+
+        function searchProduct() {
+            let input = document.getElementById('productSearch').value.toLowerCase();
+            let productList = document.getElementById('productList');
+            let products = productList.getElementsByTagName('li');
+
+            for (let i = 0; i < products.length; i++) {
+                let productName = products[i].textContent || products[i].innerText;
+                if (productName.toLowerCase().indexOf(input) > -1) {
+                    products[i].style.display = '';
+                } else {
+                    products[i].style.display = 'none';
+                }
+            }
+        }
+
+        function displayProducts(page) {
+            let productList = document.getElementById('productList');
+            let products = productList.getElementsByTagName('li');
+            let totalProducts = products.length;
+            let start = (page - 1) * productsPerPage;
+            let end = start + productsPerPage;
+
+            // Oculta todos los productos
+            for (let i = 0; i < totalProducts; i++) {
+                products[i].style.display = 'none';
+            }
+
+            // Muestra solo los productos de la página actual
+            for (let i = start; i < end && i < totalProducts; i++) {
+                products[i].style.display = 'block';
+            }
+
+            // Actualiza botones de paginación
+            document.getElementById('prevButton').style.display = page === 1 ? 'none' : 'inline-block';
+            document.getElementById('nextButton').style.display = end >= totalProducts ? 'none' : 'inline-block';
+        }
+
+        function prevPage() {
+            if (currentPage > 1) {
+                currentPage--;
+                displayProducts(currentPage);
+            }
+        }
+
+        function nextPage() {
+            currentPage++;
+            displayProducts(currentPage);
+        }
+
+        function previewTicket(event) {
+            event.preventDefault(); // Evita que el formulario se envíe inmediatamente
+
+            let tableNumber = document.querySelector('input[name="table_number"]').value;
+            let lugar = document.querySelector('select[name="lugar"]').value;
+            let note = document.getElementById('note').value;
+            let products = document.querySelectorAll('#productList li');
+            let ticketDetails = `Número de Mesa: ${tableNumber}\nLugar: ${lugar}\n\nProductos:\n`;
+
+            products.forEach(product => {
+                let productName = product.querySelector('label').textContent;
+                let quantity = product.querySelector('input').value;
+                if (quantity && quantity > 0) {
+                    ticketDetails += `${productName} - Cantidad: ${quantity}\n`;
+                }
+            });
+
+            // Agregar la nota al ticketDetails
+            if (note) {
+                ticketDetails += `\nNota: ${note}`;
+            }
+
+            // Muestra la confirmación de los detalles
+            if (ticketDetails !== `Número de Mesa: ${tableNumber}\nLugar: ${lugar}\n\nProductos:\n`) {
+                if (confirm(`Por favor, confirme los detalles del ticket:\n\n${ticketDetails}\n\n¿Desea generar el ticket?`)) {
+                    document.querySelector('form').submit(); // Envía el formulario al servidor
+                }
+            } else {
+                alert('Debe seleccionar al menos un producto.');
+            }
+        }
+
+
+        
+
+    </script>
+</head>
+<body>
+
+    <div class="barra">
+        {% if session.get('role') == 'admin' %}
+            <!-- Botón para mostrar/ocultar la barra lateral -->
+            <button id="toggle-sidebar" class="toggle-button">☰</button>
+    
+            <!-- Barra lateral -->
+            <div class="sidebar" id="sidebar" style="box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);">
+                <h2>Panel de Navegación</h2>
+                <a href="{{ url_for('admin') }}">Regresar al Panel de Administrador</a>
+                <a href="{{ url_for('kitchen') }}">Regresar al Panel de Cocina</a>
+                <!-- Agrega más enlaces según sea necesario -->
+            </div>
+        {% endif %}
+        </div>
+
+
+        <div class="main-content"> 
+
+    <div class="container">
+        <header>
+            <h1>Panel de Meseros</h1>
+        </header>
+
+        <!-- Formulario para generar un ticket -->
+        <main>
+            <h2>Crear Pedido</h2>
+            <form action="/create_ticket" method="POST" class="ticket-form">
+                <!-- Sección de Mesa y Lugar -->
+                <div id="mesaLugarSection">
+                    <div class="form-group">
+                        <label for="table_number">Número de Mesa:</label>
+                        <input type="number" name="table_number" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="lugar">Lugar:</label>
+                        <select name="lugar" required>
+                            <option value="Lg-Arriba">Lg-Arriba</option>
+                            <option value="Lg-Abajo">Lg-Abajo</option>
+                            <option value="Rs-Arriba">Rs-Arriba</option>
+                            <option value="Rs-Abajo">Rs-Abajo</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <button type="button" class="submit-button" onclick="showProducts()">Siguiente</button>
+                    </div>
+                </div>
+
+                <!-- Sección de Productos -->
+                <div id="productosSection" style="display:none;">
+                    <div class="form-group">
+                        <label for="productSearch">Buscar Producto:</label>
+                        <input type="text" id="productSearch" onkeyup="searchProduct()" placeholder="Buscar producto...">
+                    </div>
+
+                    <div class="form-group">
+                        <ul id="productList" class="product-list">
+                            {% for product in products %}
+                            <li style="display:none;">
+                                <label for="product_{{ product.id }}">{{ product.name }} (${{ product.price }})</label>
+                                <input type="number" name="quantity_{{ product.id }}" min="0" placeholder="Cantidad">
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+
+                    <!-- Botones de paginación -->
+                    <div class="form-group pagination-buttons">
+                        <button type="button" id="prevButton" class="submit-button" onclick="prevPage()" style="display:none; background-color: rgba(255, 0, 0, 0.66);">Anterior</button>
+                        <button type="button" id="nextButton" class="submit-button" onclick="nextPage()" style="background-color: green;">Siguiente</button>
+                    </div>
+                    
+
+                    <div class="form-group">
+                        <label for="note">Nota (opcional):</label>
+                        <textarea name="note" id="note" placeholder="Escribe una nota..." rows="4" cols="50"></textarea>
+                    </div>
+
+
+
+                    <div class="form-group">
+                        <button type="button" class="submit-button" onclick="showMesaLugar()" style="background-color: red;">Regresar</button>
+                        <button type="button" onclick="previewTicket(event)" class="submit-button">Generar Ticket</button>
+                    </div>
+                </div>
+            </form>
+        </main>
+
+        <!-- Pedidos Realizados -->
+        <section class="orders-section">
+            <h2>Pedidos Realizados</h2>
+            {% if completed_by_table %}
+                {% for (table_number, lugar), orders in completed_by_table.items() %}
+                <div class="order-table">
+                    <h3>Mesa: {{ table_number }} - Lugar: {{ lugar }}</h3>
+                    <ul class="order-list">
+                        {% for order in orders %}
+                        <li class="order-item">
+                            <strong>Pedido: {{ order.id }}</strong><br>
+                            Producto: {{ order.product_name }}<br>
+                            Cantidad: {{ order.quantity }}<br>
+                            Hora del Pedido: {{ order.time_ordered }}<br>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    <!-- Botón para generar la cuenta de la mesa -->
+                    <form action="/create_bill" method="POST">
+                        <input type="hidden" name="table_number" value="{{ table_number }}">
+                        <input type="hidden" name="lugar" value="{{ lugar }}">
+                        <button type="submit" class="create-bill-button">Crear Cuenta</button>
+                    </form>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p class="no-orders">No hay pedidos completados.</p>
+            {% endif %}
+        </section>
+
+        <footer>
+            <a href="/logout" class="logout-link">Cerrar Sesión</a>
+        </footer>
+    </div>
+
+
+    </div>
+    <script>
+        // Script para mostrar y ocultar la barra lateral
+        $(document).ready(function() {
+            $("#toggle-sidebar").click(function() {
+                $("#sidebar").toggle();
+            });
+        });
+    </script>
+
+
+</body>
+</html>
